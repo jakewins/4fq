@@ -7,7 +7,7 @@ import (
 
 func ExampleMultiProducerSingleConsumer() {
 	// Create an MPSC Queue
-	q, err := queue.New(queue.Options{})
+	q, err := queue.NewMultiProducerSingleConsumer(queue.Options{})
 	if err != nil {
 		// May happen if options are invalid, for instance
 		panic(err)

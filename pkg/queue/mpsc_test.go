@@ -12,7 +12,7 @@ import (
 )
 
 func TestMPSCBasic(t *testing.T) {
-	q, _ := queue.New(queue.Options{})
+	q, _ := queue.NewMultiProducerSingleConsumer(queue.Options{})
 
 	slot, _ := q.Next()
 	slot.Val = 1337
@@ -46,7 +46,7 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 	producerCount := 4
 	length := 36
 	for a := 0; a < 100; a++ {
-		q, _ := queue.New(queue.Options{
+		q, _ := queue.NewMultiProducerSingleConsumer(queue.Options{
 			Size: 8,
 		})
 
@@ -88,7 +88,7 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 func BenchmarkMpscQueue(b *testing.B) {
 	producerCount := 1
 	runningProducers := int64(producerCount)
-	q, _ := queue.New(queue.Options{
+	q, _ := queue.NewMultiProducerSingleConsumer(queue.Options{
 		Size: 1024,
 	})
 

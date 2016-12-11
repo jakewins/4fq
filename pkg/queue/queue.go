@@ -290,7 +290,7 @@ type Queue interface {
 	Drain(handler func([]*Slot)) error
 }
 
-func New(opts Options) (Queue, error) {
+func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 	if opts.Size == 0 {
 		opts.Size = 64
 	}
