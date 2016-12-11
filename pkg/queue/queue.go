@@ -280,10 +280,11 @@ func (q *mpscQueue) describe(pre string) {
 	fmt.Printf("  {%d -> %d}\n", q.published.cursor.value, q.consumed.value)
 }
 
+// A specialized alternative to Go Channels. Lets you send values from one
+// Go Routine to another in a safe way, along with many other cool use cases.
 type Queue interface {
 	Next() (*Slot, error)
 	Publish(slot *Slot) error
-
 	// Receive up to queue length items in bulk, blocking if there are no
 	// items available
 	Drain(handler func([]*Slot)) error
@@ -291,7 +292,7 @@ type Queue interface {
 
 func New(opts Options) (Queue, error) {
 	if opts.Size == 0 {
-		opts.Size = 16
+		opts.Size = 64
 	}
 	if !isPowerOfTwo(opts.Size) {
 		return nil, fmt.Errorf("Queue size must be a power of two, got %d", opts.Size)

@@ -1,7 +1,6 @@
 package queue_test
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	_ "net/http"
@@ -9,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"github.com/jakewins/4fq/pkg/4fq"
+	"github.com/jakewins/4fq/pkg/queue"
 )
 
 func TestMPSCBasic(t *testing.T) {
@@ -47,7 +46,6 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 	producerCount := 4
 	length := 36
 	for a := 0; a < 100; a++ {
-		fmt.Printf("%d\n", a)
 		q, _ := queue.New(queue.Options{
 			Size: 8,
 		})
