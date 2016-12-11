@@ -144,7 +144,8 @@ type sequencer struct {
 	// however, when we have multiple producers, they would need to block and wait on one
 	// another to mark their items published (since we publish in the sequence order)
 	// This data structure, instead, has a slot for each item in the ring, each slot gets
-	// written to it the "lap number" that has been published to it.
+	// the highest "lap number" published for that slot. The wrapPoint code in next() ensures
+	// we don't overrun.
 	//
 	// This means that if we have a slow publisher, other publishers can mark their items
 	// available ahead of time by writing their sequences lap number into the appropriate slot,
@@ -164,20 +165,15 @@ func (s *sequencer) next(n int64) int64 {
 		wrapPoint := next - s.bufferSize
 		cachedGatingSequence := s.gatingSequenceCache.value
 
-		//fmt.Printf("Cursor: %d\n", s.cursor.value)
-		//fmt.Printf("next: %d > %d || %d > %d\n", wrapPoint, cachedGatingSequence, cachedGatingSequence, current)
 		if wrapPoint > cachedGatingSequence || cachedGatingSequence > current {
-			//fmt.Printf("  true.. gate: %d  current: %d wrap: %d\n", s.gatingSequence.value, current, wrapPoint)
 			gatingSequence := min(s.gatingSequence.value, current)
 			if wrapPoint > gatingSequence {
 				s.waitStrategy.SignalAllWhenBlocking()
 				time.Sleep(time.Nanosecond)
 				continue
 			}
-			//fmt.Printf("  cache gate %d, min(%d %d)\n", gatingSequence, s.gatingSequence.value, current)
 			s.gatingSequenceCache.set(gatingSequence)
 		} else if s.cursor.compareAndSet(current, next) {
-			//fmt.Printf("  next -> %d\n", next)
 			return next
 		}
 	}
@@ -185,7 +181,6 @@ func (s *sequencer) next(n int64) int64 {
 
 func (s *sequencer) publish(lo, hi int64) {
 	for l := lo; l <= hi; l++ {
-		//fmt.Printf("Publish(%d @%d)\n", l, s.cursor.value)
 		s.setAvailable(l)
 	}
 	s.waitStrategy.SignalAllWhenBlocking()
@@ -202,17 +197,14 @@ func (s *sequencer) waitFor(sequence int64) int64 {
 	published := s.waitStrategy.WaitFor(sequence, s.cursor)
 
 	if published < sequence {
-		//fmt.Printf("  Wait: published < sequence (%d < %d)\n", published, sequence)
 		return published
 	}
 
 	high := s.getHighestPublishedSequence(sequence, published)
-	//fmt.Printf("  Wait high (%d, %d -> %d)\n", published, sequence, high)
 	return high
 }
 
 func (s *sequencer) getHighestPublishedSequence(lowerBound, availableSequence int64) int64 {
-	//fmt.Printf("  Available: %v\n", s.availableBuffer)
 	for sequence := lowerBound; sequence <= availableSequence; sequence++ {
 		if !s.isAvailable(sequence) {
 			return sequence - 1
@@ -222,8 +214,6 @@ func (s *sequencer) getHighestPublishedSequence(lowerBound, availableSequence in
 }
 
 func (s *sequencer) isAvailable(sequence int64) bool {
-	//v := atomic.LoadInt32(&s.availableBuffer[s.calculateIndex(sequence)])
-	//fmt.Printf("@%d[%d] -> %d == %d (%v)\n", sequence, s.calculateIndex(sequence), v,  s.calculateAvailabilityFlag(sequence), s.availableBuffer)
 	return atomic.LoadInt32(&s.availableBuffer[s.calculateIndex(sequence)]) == s.calculateAvailabilityFlag(sequence)
 }
 
@@ -317,8 +307,7 @@ var lm = &sync.Mutex{}
 func (q *mpscQueue) describe(pre string) {
 	lm.Lock()
 	defer lm.Unlock()
-	fmt.Println(pre)
-	fmt.Printf("  ")
+	fmt.Printf("%d\n  ", pre)
 	for _, s := range q.slots {
 		v := s.Val
 		if v == nil {
