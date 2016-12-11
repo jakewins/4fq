@@ -15,7 +15,7 @@ func ExampleMultiProducerSingleConsumer() {
 
 	// Put something on the queue
 	// 1: Get a queue slot to stick our value in
-	slot, err := q.Next()
+	slot, err := q.NextFree()
 	slot.Val = "Hello, world!"
 
 	// 2: Publish the slot

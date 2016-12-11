@@ -22,7 +22,7 @@ type Options struct {
 // Go Routine to another in a safe way, along with many other cool use cases.
 type Queue interface {
 	// For publishers - get the next free slot to write data to
-	Next() (*Slot, error)
+	NextFree() (*Slot, error)
 	// For publishers - publish a slot after filling it with data
 	Publish(slot *Slot) error
 
@@ -267,7 +267,7 @@ type mpscQueue struct {
 	mod int64
 }
 
-func (q *mpscQueue) Next() (*Slot, error) {
+func (q *mpscQueue) NextFree() (*Slot, error) {
 	acquired := q.published.next(1)
 	slot := q.slots[acquired&q.mod]
 	slot.s = acquired
