@@ -12,6 +12,10 @@ Specifically, you may benefit from using this queue if:
 - Your application is excessively using CPU cycles for garbage collection
 - Your message processor is able to process multiple messages at a time
 
+## Getting started
+
+- [Multi-producer/Single-consumer queue](pkg/queue/example_test.go#L8)
+
 ## Technical details
 
 This uses the Sequencer design from LMAX to control access to slots in a circular buffer.
