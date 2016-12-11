@@ -9,13 +9,12 @@ import (
 )
 
 type Options struct {
-	// Size of the ring buffer, must be a power-of-two number (2,4,8,16,32..)
+	// Size of the queue, must be a power-of-two number (2,4,8,16,32..)
 	Size int
 	// Optionally pre-allocate slots Val's in the ring; this is useful if you want
 	// to use buffer without allocating heap memory on the hot path - allocate records for yourself
 	// once, and then populate those records with appropriate values
 	Allocate       func() interface{}
-	XXX_InitialSeq int64
 }
 
 // A specialized alternative to Go Channels. Lets you send values from one
@@ -29,40 +28,6 @@ type Queue interface {
 	// Receive up to queue length items in bulk, blocking if there are no
 	// items available
 	Drain(handler func([]*Slot)) error
-}
-
-func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
-	if opts.Size == 0 {
-		opts.Size = 64
-	}
-	if !isPowerOfTwo(opts.Size) {
-		return nil, fmt.Errorf("Queue size must be a power of two, got %d", opts.Size)
-	}
-	if opts.Allocate == nil {
-		opts.Allocate = func() interface{} { return nil }
-	}
-
-	slots := make([]*Slot, opts.Size)
-	for i := range slots {
-		slots[i] = &Slot{
-			Val: opts.Allocate(),
-		}
-	}
-
-	consumed := &sequence{
-		value: -1,
-	}
-
-	publishedSeq := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
-
-	q := &mpscQueue{
-		slots:     slots,
-		published: publishedSeq,
-		consumed:  consumed,
-		mod:       int64(opts.Size) - 1,
-	}
-
-	return q, nil
 }
 
 type Slot struct {
@@ -98,6 +63,48 @@ func (w *SleepWaitStrategy) WaitFor(sequence int64, dependentSequence *sequence)
 	}
 	return availableSequence
 }
+
+// Create a new queue that safely handles multiple producers publishing items,
+// and one consumer receiving them. Note that the onus is on you to ensure there
+// is just one consumer - the queue will do crazy things if multiple consumers
+// run concurrently.
+//
+// Options are, as implied, optional. The queue defaults to 64 slots fixed size,
+// and initializes the Val on each slot to nil.
+func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
+	if opts.Size == 0 {
+		opts.Size = 64
+	}
+	if !isPowerOfTwo(opts.Size) {
+		return nil, fmt.Errorf("Queue size must be a power of two, got %d", opts.Size)
+	}
+	if opts.Allocate == nil {
+		opts.Allocate = func() interface{} { return nil }
+	}
+
+	slots := make([]*Slot, opts.Size)
+	for i := range slots {
+		slots[i] = &Slot{
+			Val: opts.Allocate(),
+		}
+	}
+
+	consumed := &sequence{
+		value: -1,
+	}
+
+	publishedSeq := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
+
+	q := &mpscQueue{
+		slots:     slots,
+		published: publishedSeq,
+		consumed:  consumed,
+		mod:       int64(opts.Size) - 1,
+	}
+
+	return q, nil
+}
+
 
 // A thin wrapper around a int64, giving some convenience methods for ordered writes and CAS
 //
