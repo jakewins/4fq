@@ -41,8 +41,6 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
 
-	// This tests both transferring more messages than fit in the queue,
-	// as well as wrapping the sequence counters by starting them super high
 	producerCount := 4
 	length := 36
 	for a := 0; a < 100; a++ {

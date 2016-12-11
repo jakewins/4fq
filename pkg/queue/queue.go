@@ -101,13 +101,17 @@ func (w *SleepWaitStrategy) WaitFor(sequence int64, dependentSequence *sequence)
 
 // A thin wrapper around a int64, giving some convenience methods for ordered writes and CAS
 //
-// A note on this number overflowing: If the queue is processing 10 million messages per second,
-// it will transfer 13140000000000 messages a year. int64 fits 18446744073709551615 before overflow,
-// meaning at 10M/s, the queue can run for ~a million years without overflowing. Hence, the code does
+// On Overflow: If the queue is processing 10 million messages per second,
+// it will transfer 13140000000000 messages a year. int64 fits 9223372036854775807 before overflow,
+// meaning at 10M/s, the queue can run for ~100K years without overflowing. Hence, the code does
 // knowingly not account for this value wrapping around. Off-the-cuff, throughput may be able
 // to reach the low billions before hitting actual physical limits (something something speed of light,
-// something something nano metres), but even then the queue can run for ~10 000 years before
-// wrapping.
+// something something nano metres), but even then the queue can run for thousands of years before wrapping.
+//
+// On Cache lines: The LMAX sequence implementation pads this number to force it to sit on its own
+// cache line. However, trying to pad this by adding [56]byte fields on either side had no effect on performance.
+// I'm not sure if this is because the layout doesn't suffer from false sharing, or if the go compiler removes or
+// reorders the unused fields.. In any case, I'd want evidence it makes a difference before adding it.
 type sequence struct {
 	value int64
 }
