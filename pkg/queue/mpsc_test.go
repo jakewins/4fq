@@ -1,6 +1,7 @@
 package queue_test
 
 import (
+	"github.com/jakewins/4fq/pkg/queue"
 	"log"
 	"net/http"
 	_ "net/http"
@@ -8,7 +9,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"github.com/jakewins/4fq/pkg/queue"
 )
 
 func TestMPSCBasic(t *testing.T) {
@@ -116,7 +116,6 @@ func BenchmarkMpscQueue(b *testing.B) {
 	})
 	atomic.AddInt64(&runningProducers, -1)
 }
-
 
 // For reference, same use case as above but using regular channels
 func BenchmarkChannel(b *testing.B) {

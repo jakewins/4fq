@@ -18,7 +18,52 @@ type Options struct {
 	XXX_InitialSeq int64
 }
 
-var QueueEmpty = fmt.Errorf("No items in the queue")
+// A specialized alternative to Go Channels. Lets you send values from one
+// Go Routine to another in a safe way, along with many other cool use cases.
+type Queue interface {
+	// For publishers - get the next free slot to write data to
+	Next() (*Slot, error)
+	// For publishers - publish a slot after filling it with data
+	Publish(slot *Slot) error
+
+	// Receive up to queue length items in bulk, blocking if there are no
+	// items available
+	Drain(handler func([]*Slot)) error
+}
+
+func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
+	if opts.Size == 0 {
+		opts.Size = 64
+	}
+	if !isPowerOfTwo(opts.Size) {
+		return nil, fmt.Errorf("Queue size must be a power of two, got %d", opts.Size)
+	}
+	if opts.Allocate == nil {
+		opts.Allocate = func() interface{} { return nil }
+	}
+
+	slots := make([]*Slot, opts.Size)
+	for i := range slots {
+		slots[i] = &Slot{
+			Val: opts.Allocate(),
+		}
+	}
+
+	consumed := &sequence{
+		value: -1,
+	}
+
+	publishedSeq := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
+
+	q := &mpscQueue{
+		slots:     slots,
+		published: publishedSeq,
+		consumed:  consumed,
+		mod:       int64(opts.Size) - 1,
+	}
+
+	return q, nil
+}
 
 type Slot struct {
 	s   int64
@@ -264,6 +309,7 @@ func (q *mpscQueue) Drain(handler func([]*Slot)) error {
 
 // For debugging
 var lm = &sync.Mutex{}
+
 func (q *mpscQueue) describe(pre string) {
 	lm.Lock()
 	defer lm.Unlock()
@@ -278,50 +324,6 @@ func (q *mpscQueue) describe(pre string) {
 	}
 	fmt.Println()
 	fmt.Printf("  {%d -> %d}\n", q.published.cursor.value, q.consumed.value)
-}
-
-// A specialized alternative to Go Channels. Lets you send values from one
-// Go Routine to another in a safe way, along with many other cool use cases.
-type Queue interface {
-	Next() (*Slot, error)
-	Publish(slot *Slot) error
-	// Receive up to queue length items in bulk, blocking if there are no
-	// items available
-	Drain(handler func([]*Slot)) error
-}
-
-func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
-	if opts.Size == 0 {
-		opts.Size = 64
-	}
-	if !isPowerOfTwo(opts.Size) {
-		return nil, fmt.Errorf("Queue size must be a power of two, got %d", opts.Size)
-	}
-	if opts.Allocate == nil {
-		opts.Allocate = func() interface{} { return nil }
-	}
-
-	slots := make([]*Slot, opts.Size)
-	for i := range slots {
-		slots[i] = &Slot{
-			Val: opts.Allocate(),
-		}
-	}
-
-	consumed := &sequence{
-		value: -1,
-	}
-
-	publishedSeq := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
-
-	q := &mpscQueue{
-		slots:     slots,
-		published: publishedSeq,
-		consumed:  consumed,
-		mod:       int64(opts.Size) - 1,
-	}
-
-	return q, nil
 }
 
 func isPowerOfTwo(x int) bool {

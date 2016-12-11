@@ -1,8 +1,8 @@
 package queue_test
 
 import (
-	"github.com/jakewins/4fq/pkg/queue"
 	"fmt"
+	"github.com/jakewins/4fq/pkg/queue"
 )
 
 func ExampleMultiProducerSingleConsumer() {
@@ -21,10 +21,9 @@ func ExampleMultiProducerSingleConsumer() {
 	// 2: Publish the slot
 	q.Publish(slot)
 
-
 	// Read from the queue
 	// Drain reads in bulk, blocking until at least one message is available,
-	q.Drain(func(received []*queue.Slot){
+	q.Drain(func(received []*queue.Slot) {
 		for _, slot := range received {
 			fmt.Printf("Received: %s\n", slot.Val)
 		}
