@@ -14,7 +14,7 @@ Specifically, you may benefit from using this queue if:
 
 ## Getting started
 
-- [Multi-producer/Single-consumer queue](pkg/queue/example_test.go#L8
+- [Multi-producer/Single-consumer queue](pkg/queue/example_test.go#L8)
 
 ## Performance
 
