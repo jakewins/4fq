@@ -1,9 +1,7 @@
 package queue
 
 import (
-	"fmt"
 	"runtime"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -35,11 +33,20 @@ type Slot struct {
 	Val interface{}
 }
 
+// How to approach the queue being empty
 type WaitStrategy interface {
+	// Called when producers stick new stuff in the queue. A wait strategy can use this to
+	// snooze go routines in WaitFor, and wake them up when this gets called.
 	SignalAllWhenBlocking()
+	// Called when the queue is empty. The implementation should wait for sequence to be <= dependentSequence,
+	// or until it gets tired of waiting according to whatever criteria.
+	// When this returns, it should return the current value of dependentSequence - which is allowed to be < sequence.
 	WaitFor(sequence int64, dependentSequence *sequence) int64
 }
 
+// Default wait strategy - spinlock for 100 cycles, then fall back to letting the go scheduler
+// schedule other goroutines a hundred times, and if we're still not done waiting it will start sleeping in
+// nanosecond intervals.
 type SleepWaitStrategy struct {
 }
 
@@ -63,48 +70,6 @@ func (w *SleepWaitStrategy) WaitFor(sequence int64, dependentSequence *sequence)
 	}
 	return availableSequence
 }
-
-// Create a new queue that safely handles multiple producers publishing items,
-// and one consumer receiving them. Note that the onus is on you to ensure there
-// is just one consumer - the queue will do crazy things if multiple consumers
-// run concurrently.
-//
-// Options are, as implied, optional. The queue defaults to 64 slots fixed size,
-// and initializes the Val on each slot to nil.
-func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
-	if opts.Size == 0 {
-		opts.Size = 64
-	}
-	if !isPowerOfTwo(opts.Size) {
-		return nil, fmt.Errorf("Queue size must be a power of two, got %d", opts.Size)
-	}
-	if opts.Allocate == nil {
-		opts.Allocate = func() interface{} { return nil }
-	}
-
-	slots := make([]*Slot, opts.Size)
-	for i := range slots {
-		slots[i] = &Slot{
-			Val: opts.Allocate(),
-		}
-	}
-
-	consumed := &sequence{
-		value: -1,
-	}
-
-	publishedSeq := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
-
-	q := &mpscQueue{
-		slots:     slots,
-		published: publishedSeq,
-		consumed:  consumed,
-		mod:       int64(opts.Size) - 1,
-	}
-
-	return q, nil
-}
-
 
 // A thin wrapper around a int64, giving some convenience methods for ordered writes and CAS
 //
@@ -133,21 +98,45 @@ func (s *sequence) add(delta int64) {
 	atomic.AddInt64(&s.value, delta)
 }
 
-// Lets clients "acquire" the next sequence, and then publish that sequence
-// when they are done with it; so this is about tracking control of sequences.
-// You could imagine this being implemented using two counters, "acquired" and "published",
-// chasing each other.
-// The implenentation reality is more complex - the "published" counter is represented
-// as a richer data type than a simple counter for efficiency reasons - but the behavior is the same.
+// The sequencer is the center piece of these queues - it is based entirely on the brilliant work at LMAX.
+// Each queue has one sequencer, and it controls the entry of new items into the queue.
+//
+// The core abstraction is an infinite sequence of numbers, with various parts of the queue tracking
+// which part of the number sequence they've reached. The sequencer sits in front of them all, controlling the
+// entry into "new territory". Once the sequencer increments further into the number sequence, other pointers
+// in the queue may increment up to the point the sequencer is at.
+//
+// The sequencer does this, while maintaining a key invariant: The infinite sequence of numbers is mapped onto
+// a circular buffer, which is distinctly not infinite. Hence, the sequencer keeps track of all the secondary
+// sequence pointers, and ensures the delta from the lowest pointer to the sequencer pointer never is greater
+// than the size of the buffer.
+//
+// At the end of the day, the sequencer is really just:
+//
+//   func next(n) {
+//       if cursor + n < min(otherPointersInTheQueue) {
+//           cursor += n
+//       }
+//       return cursor
+//   }
+//
+// The neat thing is that it does the above using some really clever techniques that make the sequencer
+// safe for concurrent use, and extremely low overhead to boot.
 type sequencer struct {
 	bufferSize   int64
 	waitStrategy WaitStrategy
+
+	// This is the golden cursor - it points to the highest number the sequencer (and hence any other pointer)
+	// has reached in our supposedly infinite sequence of numbers
 	cursor       *sequence
-	// This is the sequence "ahead" of us that we're not allowed to surpass
+
+	// This is the other pointer (soon to be multiple, but one for now) in the queue - the sequencer makes sure
+	// it doesn't get further ahead of this than bufferSize, otherwise we'd wrap around the buffer and overwrite
+	// slots before they had been processed.
 	gatingSequence      *sequence
 	gatingSequenceCache *sequence
 
-	// Tracks published sequence items. This could be implemented with a simple counter;
+	// Tracks published slots. This could be implemented with a simple counter;
 	// however, when we have multiple producers, they would need to block and wait on one
 	// another to mark their items published (since we publish in the sequence order)
 	// This data structure, instead, has a slot for each item in the ring, each slot gets
@@ -257,73 +246,6 @@ func newSequencer(bufferSize int, ws WaitStrategy, initial int64, gatingSequence
 	s.setAvailableBufferValue(0, -1)
 
 	return s
-}
-
-// Multi-producer single-consumer allocation-free ring buffer
-type mpscQueue struct {
-
-	// Highest published slot, transfers slot ownership from producers to consumers
-	published *sequencer
-
-	// Highest consumed slot
-	consumed *sequence
-
-	slots []*Slot
-
-	// For quick remainder calculation, this is len(slots) - 1
-	mod int64
-}
-
-func (q *mpscQueue) NextFree() (*Slot, error) {
-	acquired := q.published.next(1)
-	slot := q.slots[acquired&q.mod]
-	slot.s = acquired
-	return slot, nil
-}
-
-func (q *mpscQueue) Publish(slot *Slot) error {
-	q.published.publish(slot.s, slot.s)
-	return nil
-}
-
-func (q *mpscQueue) Drain(handler func([]*Slot)) error {
-	bufferSize := int64(len(q.slots))
-	next := q.consumed.value + 1
-	published := q.published.waitFor(next)
-
-	if published < next {
-		return nil
-	}
-
-	from, to := next&q.mod, (published)&q.mod
-
-	// If from > to, we've wrapped around the buffer, so we split into two calls
-	if from > to {
-		handler(q.slots[from:])
-		q.consumed.add(bufferSize - from)
-	} else if from <= to {
-		handler(q.slots[from : to+1])
-		q.consumed.add(to - from + 1)
-	}
-	return nil
-}
-
-// For debugging
-var lm = &sync.Mutex{}
-
-func (q *mpscQueue) describe(pre string) {
-	lm.Lock()
-	defer lm.Unlock()
-	fmt.Printf("%d\n  ", pre)
-	for _, s := range q.slots {
-		v := s.Val
-		if v == nil {
-			v = "-"
-		}
-		fmt.Printf("[%v]", v)
-	}
-	fmt.Println()
-	fmt.Printf("  {%d -> %d}\n", q.published.cursor.value, q.consumed.value)
 }
 
 func isPowerOfTwo(x int) bool {
