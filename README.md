@@ -10,7 +10,7 @@ Specifically, you may benefit from using this queue if:
 
 - Your application deals with high throughput processing of discrete messages
 - Your application is excessively using CPU cycles for garbage collection
-- Your message processor is able to process multiple messages at a time
+- Your message processor benefits from batching - for instance an IO operation where writing a message is cheap but flushing is expensive
 
 ## Examples
 
