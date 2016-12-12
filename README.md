@@ -42,6 +42,11 @@ of a component that is usually not a bottleneck in the first place, and to my kn
 benchmark suite does not account for coordinated omission, so real-world performance will see 
 higher latencies. 
 
+It's also notably high - the sequencer is expected to see latencies closer to 0.5-4ns, so something
+is off in my benchmark or implementation. However, the implementation currently provides a batch-drain
+capable low-latency queue, which is what my immediate need was. I'll come back to this and improve
+as time permits.
+
 ## Technical details
 
 This uses the Sequencer design from LMAX to control access to slots in a circular buffer.
@@ -55,6 +60,21 @@ This works very well for continuous high throughput load.
 However, for load with sporadic lulls, busy-spin strategies excessively use CPU resources. 
 Hence, when waiting on an empty or full queue, wait strategies can be plugged in that do use
 regular scheduler primitives for signaling when to wake go routines back up.
+
+## Contributions
+
+Contributions are super welcome - but *please* do reach out ahead of time if you're making major changes,
+rejecting work because it doesn't quite go in the intended direction is the worst thing in the world. 
+I'm super happy to collaborate and help guide contributions.
+
+Things that would be brilliant contributions:
+
+- Timeouts
+- Close(), that interrupts waiters
+- A multi-consumer version (leveraging something similar to the producer sequencer already in place)
+- A single-producer version (no need for the CAS or complex publishing if there's just one producer)
+- Wait strategy that falls back to regular Mutexes for long waits (see SignalAllWhenBlocking in WaitStrategy)
+- Sorting out why latency is in the 80ns range instead of 1ns range as expected
 
 # License
 
