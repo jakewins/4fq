@@ -85,6 +85,10 @@ type sequence struct {
 	_rpad [56]byte
 }
 
+func (s *sequence) get() int64 {
+	return atomic.LoadInt64(&s.value)
+}
+
 func (s *sequence) set(v int64) {
 	atomic.StoreInt64(&s.value, v)
 }
@@ -156,7 +160,7 @@ func (s *sequencer) next(n int64) int64 {
 		next := current + n
 
 		wrapPoint := next - s.bufferSize
-		cachedGatingSequence := s.gatingSequenceCache.value
+		cachedGatingSequence := s.gatingSequenceCache.get()
 
 		if wrapPoint > cachedGatingSequence || cachedGatingSequence > current {
 			gatingSequence := min(s.gatingSequence.value, current)
