@@ -156,7 +156,7 @@ type sequencer struct {
 // Get control of n items, returning the end item sequence
 func (s *sequencer) next(n int64) int64 {
 	for {
-		current := s.cursor.value
+		current := s.cursor.get()
 		next := current + n
 
 		wrapPoint := next - s.bufferSize
