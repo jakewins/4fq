@@ -19,7 +19,7 @@ func TestMPSCBasic(t *testing.T) {
 
 	var published []int
 	q.Drain(func(slot *queue.Slot) {
-			published = append(published, slot.Val.(int))
+		published = append(published, slot.Val.(int))
 	})
 	if len(published) != 1 {
 		t.Errorf("Expected 1 published item, found %d", len(published))

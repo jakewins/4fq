@@ -12,7 +12,7 @@ type Options struct {
 	// Optionally pre-allocate slots Val's in the ring; this is useful if you want
 	// to use buffer without allocating heap memory on the hot path - allocate records for yourself
 	// once, and then populate those records with appropriate values
-	Allocate       func() interface{}
+	Allocate func() interface{}
 }
 
 // A specialized alternative to Go Channels. Lets you send values from one
@@ -125,7 +125,7 @@ type sequencer struct {
 
 	// This is the golden cursor - it points to the highest number the sequencer (and hence any other pointer)
 	// has reached in our supposedly infinite sequence of numbers
-	cursor       *sequence
+	cursor *sequence
 
 	// This is the other pointer (soon to be multiple, but one for now) in the queue - the sequencer makes sure
 	// it doesn't get further ahead of this than bufferSize, otherwise we'd wrap around the buffer and overwrite

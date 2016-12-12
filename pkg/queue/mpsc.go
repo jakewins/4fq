@@ -5,7 +5,6 @@ import (
 	"sync"
 )
 
-
 // Create a new queue that safely handles multiple producers publishing items,
 // and one consumer receiving them. Note that the onus is on you to ensure there
 // is just one consumer - the queue will do crazy things if multiple consumers
