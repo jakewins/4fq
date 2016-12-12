@@ -30,13 +30,13 @@ For those benchmarks, latency is:
     4FQ:
     139 ns/op
 
-Obviously this is a meaningless number, outside of the fact that your use case is likely different,
-and it's a micro benchmark of a component that is usually not a bottleneck in the first place,
-and to my knowledge the go benchmark suite does not account for coordinated omission, so real-world
-performance will be higher latencies. 
+Obviously this is a meaningless number. Your use case is likely different, it's a micro benchmark 
+of a component that is usually not a bottleneck in the first place, and to my knowledge the go 
+benchmark suite does not account for coordinated omission, so real-world performance will see 
+higher latencies. 
 
 However, it's a starting point to make a claim that, for my use case, this is substantially faster than 
-Channels.
+Channels. Which in turn means that others with similar use cases might benefit as well.
 
 ## Technical details
 
