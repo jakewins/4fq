@@ -42,11 +42,6 @@ of a component that is usually not a bottleneck in the first place, and to my kn
 benchmark suite does not account for coordinated omission, so real-world performance will see 
 higher latencies. 
 
-It's also notably high - the sequencer is expected to see latencies closer to 0.5-4ns, so something
-is off in my benchmark or implementation. However, the implementation currently provides a batch-drain
-capable low-latency queue, which is what my immediate need was. I'll come back to this and improve
-as time permits.
-
 ## Technical details
 
 This uses the Sequencer design from LMAX to control access to slots in a circular buffer.
