@@ -8,7 +8,6 @@ import (
 	_ "net/http/pprof"
 	"sync/atomic"
 	"testing"
-	"time"
 )
 
 func TestMPSCBasic(t *testing.T) {
@@ -78,7 +77,7 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 }
 
 func BenchmarkMpscQueue(b *testing.B) {
-	producerCount := 1
+	producerCount := 4
 	runningProducers := int64(producerCount)
 	q, _ := queue.NewMultiProducerSingleConsumer(queue.Options{
 		Size: 1024,
@@ -90,7 +89,6 @@ func BenchmarkMpscQueue(b *testing.B) {
 			q.Drain(func(slot *queue.Slot) {
 				receivedCount += 1
 			})
-			time.Sleep(time.Microsecond)
 		}
 	}()
 
@@ -111,7 +109,7 @@ func BenchmarkMpscQueue(b *testing.B) {
 
 // For reference, same use case as above but using regular channels
 func BenchmarkChannel(b *testing.B) {
-	producerCount := 1
+	producerCount := 4
 	runningProducers := int64(producerCount)
 	ch := make(chan int, 1024)
 
@@ -120,7 +118,6 @@ func BenchmarkChannel(b *testing.B) {
 		for atomic.LoadInt64(&runningProducers) > 0 {
 			slot := <-ch
 			receivedCount += slot
-			time.Sleep(time.Microsecond)
 		}
 	}()
 

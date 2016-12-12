@@ -16,6 +16,13 @@ Specifically, you may benefit from using this queue if:
 
 - [Multi-producer/Single-consumer queue](pkg/queue/example_test.go#L8)
 
+## Key features
+
+- Allows batch reading, "give me as many current messages in the queue as you can"
+- Allows sharing a pre-allocated set of records between subscribers and producers,
+  meaning allocation-free message passing
+- As fast as or faster than channels
+
 ## Performance
 
 This was built for a specific use case - multiple go routines producing messages that 
@@ -25,18 +32,15 @@ a queue-based benchmark you can find [here](pkg/queue/mpsc_test.go#L86).
 For those benchmarks, latency is:
 
     Channels:
-    11022 ns/op
+    95 ns/op
     
     4FQ:
-    139 ns/op
+    83 ns/op
 
 Obviously this is a meaningless number. Your use case is likely different, it's a micro benchmark 
 of a component that is usually not a bottleneck in the first place, and to my knowledge the go 
 benchmark suite does not account for coordinated omission, so real-world performance will see 
 higher latencies. 
-
-However, it's a starting point to make a claim that, for my use case, this is substantially faster than 
-Channels. Which in turn means that others with similar use cases might benefit as well.
 
 ## Technical details
 

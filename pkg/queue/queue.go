@@ -79,13 +79,10 @@ func (w *SleepWaitStrategy) WaitFor(sequence int64, dependentSequence *sequence)
 // knowingly not account for this value wrapping around. Off-the-cuff, throughput may be able
 // to reach the low billions before hitting actual physical limits (something something speed of light,
 // something something nano metres), but even then the queue can run for thousands of years before wrapping.
-//
-// On Cache lines: The LMAX sequence implementation pads this number to force it to sit on its own
-// cache line. However, trying to pad this by adding [56]byte fields on either side had no effect on performance.
-// I'm not sure if this is because the layout doesn't suffer from false sharing, or if the go compiler removes or
-// reorders the unused fields.. In any case, I'd want evidence it makes a difference before adding it.
 type sequence struct {
+	_lpad [56]byte
 	value int64
+	_rpad [56]byte
 }
 
 func (s *sequence) set(v int64) {
