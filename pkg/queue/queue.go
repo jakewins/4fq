@@ -25,7 +25,7 @@ type Queue interface {
 
 	// Receive up to queue length items in bulk, blocking if there are no
 	// items available
-	Drain(handler func([]*Slot)) error
+	Drain(handler func(*Slot)) error
 }
 
 type Slot struct {

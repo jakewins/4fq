@@ -74,8 +74,7 @@ func (q *mpscQueue) Publish(slot *Slot) error {
 	return nil
 }
 
-func (q *mpscQueue) Drain(handler func([]*Slot)) error {
-	bufferSize := int64(len(q.slots))
+func (q *mpscQueue) Drain(handler func(*Slot)) error {
 	next := q.consumed.value + 1
 	published := q.published.waitFor(next)
 
@@ -83,16 +82,12 @@ func (q *mpscQueue) Drain(handler func([]*Slot)) error {
 		return nil
 	}
 
-	from, to := next&q.mod, (published)&q.mod
+	numConsumed := published - next + 1
 
-	// If from > to, we've wrapped around the buffer, so we split into two calls
-	if from > to {
-		handler(q.slots[from:])
-		q.consumed.add(bufferSize - from)
-	} else if from <= to {
-		handler(q.slots[from : to+1])
-		q.consumed.add(to - from + 1)
+	for ; next <= published; next++ {
+		handler(q.slots[next&q.mod])
 	}
+	q.consumed.add(numConsumed)
 	return nil
 }
 

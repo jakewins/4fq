@@ -19,12 +19,8 @@ func TestMPSCBasic(t *testing.T) {
 	q.Publish(slot)
 
 	var published []int
-	q.Drain(func(slots []*queue.Slot) {
-		{
-			for _, s := range slots {
-				published = append(published, s.Val.(int))
-			}
-		}
+	q.Drain(func(slot *queue.Slot) {
+			published = append(published, slot.Val.(int))
 	})
 	if len(published) != 1 {
 		t.Errorf("Expected 1 published item, found %d", len(published))
@@ -64,12 +60,10 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 		var received = make([][]int, producerCount)
 		var receivedCount int
 		for receivedCount < length*producerCount {
-			q.Drain(func(slots []*queue.Slot) {
-				for _, s := range slots {
-					item := s.Val.(*testItem)
-					received[item.producer] = append(received[item.producer], item.val)
-					receivedCount += 1
-				}
+			q.Drain(func(slot *queue.Slot) {
+				item := slot.Val.(*testItem)
+				received[item.producer] = append(received[item.producer], item.val)
+				receivedCount += 1
 			})
 		}
 
@@ -93,8 +87,8 @@ func BenchmarkMpscQueue(b *testing.B) {
 	go func() {
 		var receivedCount int
 		for atomic.LoadInt64(&runningProducers) > 0 {
-			q.Drain(func(slots []*queue.Slot) {
-				receivedCount += len(slots)
+			q.Drain(func(slot *queue.Slot) {
+				receivedCount += 1
 			})
 			time.Sleep(time.Microsecond)
 		}

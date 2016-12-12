@@ -23,10 +23,8 @@ func ExampleMultiProducerSingleConsumer() {
 
 	// Read from the queue
 	// Drain reads in bulk, blocking until at least one message is available,
-	q.Drain(func(received []*queue.Slot) {
-		for _, slot := range received {
-			fmt.Printf("Received: %s\n", slot.Val)
-		}
+	q.Drain(func(slot *queue.Slot) {
+		fmt.Printf("Received: %s\n", slot.Val)
 	})
 
 	// Output:
