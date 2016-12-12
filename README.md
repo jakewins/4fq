@@ -20,7 +20,7 @@ Specifically, you may benefit from using this queue if:
 
 This was built for a specific use case - multiple go routines producing messages that 
 are then processed in batch by a single go routine. That use case has a chan-based and
-a queue-based benchmark you can find [here](pkg/queue/example_test.go#L86).
+a queue-based benchmark you can find [here](pkg/queue/mpsc_test.go#L86).
 
 For those benchmarks, latency is:
 
