@@ -172,7 +172,7 @@ func (s *sequencer) next(n int64) int64 {
 		cachedGatingSequence := s.gatingSequenceCache.get()
 
 		if wrapPoint > cachedGatingSequence || cachedGatingSequence > current {
-			gatingSequence := min(s.gatingSequence.value, current)
+			gatingSequence := min(atomic.LoadInt64(&s.gatingSequence.value), current)
 			if wrapPoint > gatingSequence {
 				s.waitStrategy.SignalAllWhenBlocking()
 				time.Sleep(time.Nanosecond)
