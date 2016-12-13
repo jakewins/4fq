@@ -4,3 +4,5 @@ go:
   - 1.6.x
   - 1.7.x
   - master
+
+gobuild_args: -v -race
