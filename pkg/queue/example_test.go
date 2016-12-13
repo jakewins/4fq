@@ -16,7 +16,7 @@ func ExampleMultiProducerSingleConsumer() {
 	// Put something on the queue
 	// 1: Get a queue slot to stick our value in
 	slot, err := q.NextFree()
-	slot.Val = "Hello, world!"
+	slot.Set("Hello, world!")
 
 	// 2: Publish the slot
 	q.Publish(slot)
@@ -24,7 +24,7 @@ func ExampleMultiProducerSingleConsumer() {
 	// Read from the queue
 	// Drain reads in bulk, blocking until at least one message is available,
 	q.Drain(func(slot *queue.Slot) {
-		fmt.Printf("Received: %s\n", slot.Val)
+		fmt.Printf("Received: %s\n", slot.Get())
 	})
 
 	// Output:

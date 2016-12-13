@@ -4,6 +4,7 @@ import (
 	"runtime"
 	"sync/atomic"
 	"time"
+	"unsafe"
 )
 
 type Options struct {
@@ -30,7 +31,15 @@ type Queue interface {
 
 type Slot struct {
 	s   int64
-	Val interface{}
+	ptr unsafe.Pointer
+}
+
+func (s *Slot) Get() interface{} {
+	return *(*interface{})(atomic.LoadPointer(&s.ptr))
+}
+
+func (s *Slot) Set(v interface{}) {
+	atomic.StorePointer(&s.ptr, unsafe.Pointer(&v))
 }
 
 // How to approach the queue being empty

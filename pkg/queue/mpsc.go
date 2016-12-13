@@ -25,9 +25,8 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 
 	slots := make([]*Slot, opts.Size)
 	for i := range slots {
-		slots[i] = &Slot{
-			Val: opts.Allocate(),
-		}
+		slots[i] = &Slot{}
+		slots[i].Set(opts.Allocate())
 	}
 
 	consumed := &sequence{
@@ -73,6 +72,10 @@ func (q *mpscQueue) Publish(slot *Slot) error {
 	return nil
 }
 
+func (q *mpscQueue) Push(producer func(slot *Slot)) {
+
+}
+
 func (q *mpscQueue) Drain(handler func(*Slot)) error {
 	next := q.consumed.value + 1
 	published := q.published.waitFor(next)
@@ -98,7 +101,7 @@ func (q *mpscQueue) describe(pre string) {
 	defer lm.Unlock()
 	fmt.Printf("%d\n  ", pre)
 	for _, s := range q.slots {
-		v := s.Val
+		v := s.Get()
 		if v == nil {
 			v = "-"
 		}

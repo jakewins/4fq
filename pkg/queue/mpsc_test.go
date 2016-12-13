@@ -14,12 +14,12 @@ func TestMPSCBasic(t *testing.T) {
 	q, _ := queue.NewMultiProducerSingleConsumer(queue.Options{})
 
 	slot, _ := q.NextFree()
-	slot.Val = 1337
+	slot.Set(1337)
 	q.Publish(slot)
 
 	var published []int
 	q.Drain(func(slot *queue.Slot) {
-		published = append(published, slot.Val.(int))
+		published = append(published, slot.Get().(int))
 	})
 	if len(published) != 1 {
 		t.Errorf("Expected 1 published item, found %d", len(published))
@@ -47,10 +47,10 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 			go func(pid int) {
 				for i := 0; i < length; i++ {
 					slot, _ := q.NextFree()
-					slot.Val = &testItem{
+					slot.Set(&testItem{
 						producer: pid,
 						val:      i,
-					}
+					})
 					q.Publish(slot)
 				}
 			}(producerId)
@@ -60,7 +60,7 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 		var receivedCount int
 		for receivedCount < length*producerCount {
 			q.Drain(func(slot *queue.Slot) {
-				item := slot.Val.(*testItem)
+				item := slot.Get().(*testItem)
 				received[item.producer] = append(received[item.producer], item.val)
 				receivedCount += 1
 			})
@@ -98,7 +98,7 @@ func BenchmarkMpscQueue(b *testing.B) {
 		i := 0
 		for pb.Next() {
 			slot, _ := q.NextFree()
-			slot.Val = i
+			slot.Set(i)
 			q.Publish(slot)
 			i += 1
 		}
