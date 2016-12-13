@@ -35,7 +35,7 @@ For those benchmarks, latency is:
     95 ns/op
     
     4FQ:
-    83 ns/op
+    137 ns/op
 
 Obviously this is a meaningless number. Your use case is likely different, it's a micro benchmark 
 of a component that is usually not a bottleneck in the first place, and to my knowledge the go 
