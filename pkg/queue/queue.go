@@ -67,7 +67,7 @@ func (w *SleepWaitStrategy) WaitFor(sequence int64, dependentSequence *sequence)
 	counter := 200
 
 	//fmt.Printf("WaitFor(%d >= %d)\n", dependentSequence.value, sequence)
-	for availableSequence = dependentSequence.value; availableSequence < sequence; availableSequence = dependentSequence.value {
+	for availableSequence = dependentSequence.get(); availableSequence < sequence; availableSequence = dependentSequence.get() {
 		if counter > 100 {
 			counter--
 		} else if counter > 0 {
@@ -172,7 +172,7 @@ func (s *sequencer) next(n int64) int64 {
 		cachedGatingSequence := s.gatingSequenceCache.get()
 
 		if wrapPoint > cachedGatingSequence || cachedGatingSequence > current {
-			gatingSequence := min(atomic.LoadInt64(&s.gatingSequence.value), current)
+			gatingSequence := min(s.gatingSequence.get(), current)
 			if wrapPoint > gatingSequence {
 				s.waitStrategy.SignalAllWhenBlocking()
 				time.Sleep(time.Nanosecond)
