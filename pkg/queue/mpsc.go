@@ -33,11 +33,12 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 		value: -1,
 	}
 
-	publishedSeq := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
+	sequencer := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
 
 	q := &mpscQueue{
 		slots:     slots,
-		published: publishedSeq,
+		sequencer: sequencer,
+		published: sequencer.newBarrier(sequencer.cursor),
 		consumed:  consumed,
 		mod:       int64(opts.Size) - 1,
 	}
@@ -48,8 +49,12 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 // Multi-producer single-consumer allocation-free ring buffer
 type mpscQueue struct {
 
-	// Highest published slot, transfers slot ownership from producers to consumers
-	published *sequencer
+	// Core source of coordination, points to the highest sequence reached and can create barriers to
+	// safely track how far a sequence has published
+	sequencer *sequencer
+
+	// Barrier for published items - consumers wait on this
+	published *barrier
 
 	// Highest consumed slot
 	consumed *sequence
@@ -61,7 +66,7 @@ type mpscQueue struct {
 }
 
 func (q *mpscQueue) NextFree() (*Slot, error) {
-	acquired := q.published.next(1)
+	acquired := q.sequencer.next(1)
 	slot := q.slots[acquired&q.mod]
 	slot.s = acquired
 	return slot, nil
@@ -108,5 +113,5 @@ func (q *mpscQueue) describe(pre string) {
 		fmt.Printf("[%v]", v)
 	}
 	fmt.Println()
-	fmt.Printf("  {%d -> %d}\n", q.published.cursor.value, q.consumed.value)
+	fmt.Printf("  {%d -> %d}\n", q.sequencer.cursor.value, q.consumed.value)
 }

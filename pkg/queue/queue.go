@@ -145,21 +145,6 @@ type sequencer struct {
 	// slots before they had been processed.
 	gatingSequence      *sequence
 	gatingSequenceCache *sequence
-
-	// Tracks published slots. This could be implemented with a simple counter;
-	// however, when we have multiple producers, they would need to block and wait on one
-	// another to mark their items published (since we publish in the sequence order)
-	// This data structure, instead, has a slot for each item in the ring, each slot gets
-	// the highest "lap number" published for that slot. The wrapPoint code in next() ensures
-	// we don't overrun.
-	//
-	// This means that if we have a slow publisher, other publishers can mark their items
-	// available ahead of time by writing their sequences lap number into the appropriate slot,
-	// meaning they don't have to wait for the slow publisher to publish.
-	availableBuffer []int32
-
-	indexMask  int64
-	indexShift uint
 }
 
 // Get control of n items, returning the end item sequence
@@ -185,55 +170,22 @@ func (s *sequencer) next(n int64) int64 {
 	}
 }
 
-func (s *sequencer) publish(lo, hi int64) {
-	for l := lo; l <= hi; l++ {
-		s.setAvailable(l)
-	}
-	s.waitStrategy.SignalAllWhenBlocking()
-}
-
-func (s *sequencer) setAvailable(sequence int64) {
-	s.setAvailableBufferValue(s.calculateIndex(sequence), s.calculateAvailabilityFlag(sequence))
-}
-
-// Try and wait for the given sequence to be available. How long this will wait depends on
-// the wait strategy used - in any case, the actual sequence reached is returned and may be less
-// than the requested sequence.
-func (s *sequencer) waitFor(sequence int64) int64 {
-	published := s.waitStrategy.WaitFor(sequence, s.cursor)
-
-	if published < sequence {
-		return published
+func (s *sequencer) newBarrier(dependentOn *sequence) *barrier {
+	b := &barrier{
+		bufferSize: s.bufferSize,
+		waitStrategy: s.waitStrategy,
+		dependentSequence:   dependentOn,
+		availableBuffer:     make([]int32, s.bufferSize),
+		indexMask:           int64(s.bufferSize - 1),
+		indexShift:          log2(s.bufferSize),
 	}
 
-	high := s.getHighestPublishedSequence(sequence, published)
-	return high
-}
-
-func (s *sequencer) getHighestPublishedSequence(lowerBound, availableSequence int64) int64 {
-	for sequence := lowerBound; sequence <= availableSequence; sequence++ {
-		if !s.isAvailable(sequence) {
-			return sequence - 1
-		}
+	for i := int(s.bufferSize - 1); i != 0; i-- {
+		b.setAvailableBufferValue(i, -1)
 	}
-	return availableSequence
-}
+	b.setAvailableBufferValue(0, -1)
 
-func (s *sequencer) isAvailable(sequence int64) bool {
-	return atomic.LoadInt32(&s.availableBuffer[s.calculateIndex(sequence)]) == s.calculateAvailabilityFlag(sequence)
-}
-
-// The availability "flag" is a "lap counter", sequence / ring size
-func (s *sequencer) calculateAvailabilityFlag(sequence int64) int32 {
-	return int32(sequence >> s.indexShift)
-}
-
-func (s *sequencer) calculateIndex(sequence int64) int {
-	return int(sequence & s.indexMask)
-}
-
-func (s *sequencer) setAvailableBufferValue(index int, flag int32) {
-	atomic.StoreInt32(&s.availableBuffer[index], flag)
+	return b
 }
 
 func newSequencer(bufferSize int, ws WaitStrategy, initial int64, gatingSequence *sequence) *sequencer {
@@ -245,15 +197,7 @@ func newSequencer(bufferSize int, ws WaitStrategy, initial int64, gatingSequence
 		},
 		gatingSequence:      gatingSequence,
 		gatingSequenceCache: &sequence{value: -1},
-		availableBuffer:     make([]int32, bufferSize),
-		indexMask:           int64(bufferSize - 1),
-		indexShift:          log2(bufferSize),
 	}
-
-	for i := bufferSize - 1; i != 0; i-- {
-		s.setAvailableBufferValue(i, -1)
-	}
-	s.setAvailableBufferValue(0, -1)
 
 	return s
 }
@@ -269,7 +213,7 @@ func min(a, b int64) int64 {
 	return b
 }
 
-func log2(i int) uint {
+func log2(i int64) uint {
 	r := uint(0)
 	for i >>= 1; i != 0; i >>= 1 {
 		r++
