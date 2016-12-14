@@ -230,6 +230,42 @@ func (q *singleConsumerQueue) Drain(handler func(*Slot)) error {
 	return nil
 }
 
+
+type multiConsumerQueue struct {
+	baseQueue
+
+	// Used to coordinate between consumers on who handles what sequence items
+	consumerAcquired *sequence
+
+	// Barrier for consumed items - producers wait on this
+	consumed *multiWriterBarrier
+}
+
+func (q *multiConsumerQueue) Drain(handler func(*Slot)) error {
+	// This loop to handle us racing with other consumers - keep trying
+	// until we get a range via the CAS further down
+	for {
+		next := q.consumerAcquired.get() + 1
+		published := q.published.waitFor(next)
+
+		if published < next {
+			return nil
+		}
+
+		// Got a candidate for what to handle, coordinate
+		// with other consumers to check if we can take it on
+		if (q.consumerAcquired.compareAndSet(next, published)) {
+			// We claimed the range, drain it.
+
+			for ; next <= published; next++ {
+				handler(q.slots[next & q.mod])
+			}
+			q.consumed.publish(published, published)
+			return nil
+		}
+	}
+}
+
 func isPowerOfTwo(x int) bool {
 	return (x != 0) && (x&(x-1)) == 0
 }
