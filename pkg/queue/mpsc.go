@@ -38,7 +38,7 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 	q := &mpscQueue{
 		slots:     slots,
 		sequencer: sequencer,
-		published: sequencer.newBarrier(sequencer.cursor),
+		published: sequencer.newMultiWriterBarrier(sequencer.cursor),
 		consumed:  consumed,
 		mod:       int64(opts.Size) - 1,
 	}
@@ -54,7 +54,7 @@ type mpscQueue struct {
 	sequencer *sequencer
 
 	// Barrier for published items - consumers wait on this
-	published *barrier
+	published barrier
 
 	// Highest consumed slot
 	consumed *sequence

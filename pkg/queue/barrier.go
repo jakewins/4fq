@@ -3,6 +3,7 @@ package queue
 import "sync/atomic"
 
 // See the sequencer doc for context.
+//
 // Given the core construct of infinitely increasing sequences, the idea is that
 // a consumer can pick up items in the queue once a producer signals it's "moved past"
 // that items sequence number. Likewise, a producer can pick up an item and re-use it
@@ -10,7 +11,13 @@ import "sync/atomic"
 //
 // The barrier is a data structure that we use to safely and efficiently convey
 // the message "I'm done up to sequence N".
-type barrier struct {
+type barrier interface {
+	publish(lo, hi int64)
+	waitFor(sequence int64) int64
+}
+
+
+type multiWriterBarrier struct {
 	bufferSize   int64
 	waitStrategy WaitStrategy
 
@@ -33,21 +40,21 @@ type barrier struct {
 	indexShift uint
 }
 
-func (s *barrier) publish(lo, hi int64) {
+func (s *multiWriterBarrier) publish(lo, hi int64) {
 	for l := lo; l <= hi; l++ {
 		s.setAvailable(l)
 	}
 	s.waitStrategy.SignalAllWhenBlocking()
 }
 
-func (b *barrier) setAvailable(sequence int64) {
+func (b *multiWriterBarrier) setAvailable(sequence int64) {
 	b.setAvailableBufferValue(b.calculateIndex(sequence), b.calculateAvailabilityFlag(sequence))
 }
 
 // Try and wait for the given sequence to be available. How long this will wait depends on
 // the wait strategy used - in any case, the actual sequence reached is returned and may be less
 // than the requested sequence.
-func (b *barrier) waitFor(sequence int64) int64 {
+func (b *multiWriterBarrier) waitFor(sequence int64) int64 {
 	published := b.waitStrategy.WaitFor(sequence, b.dependentSequence)
 
 	if published < sequence {
@@ -58,7 +65,7 @@ func (b *barrier) waitFor(sequence int64) int64 {
 	return high
 }
 
-func (b *barrier) getHighestPublishedSequence(lowerBound, availableSequence int64) int64 {
+func (b *multiWriterBarrier) getHighestPublishedSequence(lowerBound, availableSequence int64) int64 {
 	for sequence := lowerBound; sequence <= availableSequence; sequence++ {
 		if !b.isAvailable(sequence) {
 			return sequence - 1
@@ -67,19 +74,19 @@ func (b *barrier) getHighestPublishedSequence(lowerBound, availableSequence int6
 	return availableSequence
 }
 
-func (b *barrier) isAvailable(sequence int64) bool {
+func (b *multiWriterBarrier) isAvailable(sequence int64) bool {
 	return atomic.LoadInt32(&b.availableBuffer[b.calculateIndex(sequence)]) == b.calculateAvailabilityFlag(sequence)
 }
 
 // The availability "flag" is a "lap counter", sequence / ring size
-func (s *barrier) calculateAvailabilityFlag(sequence int64) int32 {
+func (s *multiWriterBarrier) calculateAvailabilityFlag(sequence int64) int32 {
 	return int32(sequence >> s.indexShift)
 }
 
-func (s *barrier) calculateIndex(sequence int64) int {
+func (s *multiWriterBarrier) calculateIndex(sequence int64) int {
 	return int(sequence & s.indexMask)
 }
 
-func (s *barrier) setAvailableBufferValue(index int, flag int32) {
+func (s *multiWriterBarrier) setAvailableBufferValue(index int, flag int32) {
 	atomic.StoreInt32(&s.availableBuffer[index], flag)
 }

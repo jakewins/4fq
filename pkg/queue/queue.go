@@ -66,7 +66,6 @@ func (w *SleepWaitStrategy) WaitFor(sequence int64, dependentSequence *sequence)
 	var availableSequence int64
 	counter := 200
 
-	//fmt.Printf("WaitFor(%d >= %d)\n", dependentSequence.value, sequence)
 	for availableSequence = dependentSequence.get(); availableSequence < sequence; availableSequence = dependentSequence.get() {
 		if counter > 100 {
 			counter--
@@ -170,8 +169,8 @@ func (s *sequencer) next(n int64) int64 {
 	}
 }
 
-func (s *sequencer) newBarrier(dependentOn *sequence) *barrier {
-	b := &barrier{
+func (s *sequencer) newMultiWriterBarrier(dependentOn *sequence) barrier {
+	b := &multiWriterBarrier{
 		bufferSize: s.bufferSize,
 		waitStrategy: s.waitStrategy,
 		dependentSequence:   dependentOn,
