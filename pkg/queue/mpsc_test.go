@@ -37,7 +37,7 @@ func TestMPSCBufferWrapAround(t *testing.T) {
 	}()
 
 	producerCount := 4
-	length := 36
+	length := 360
 	for a := 0; a < 100; a++ {
 		q, _ := queue.NewMultiProducerSingleConsumer(queue.Options{
 			Size: 8,
