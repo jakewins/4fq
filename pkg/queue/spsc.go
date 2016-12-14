@@ -4,6 +4,13 @@ import (
 	"fmt"
 )
 
+// Create a new queue that safely handles one producer publishing items,
+// and one consumer receiving them. Note that the onus is on you to ensure there
+// is just one consumer and one producer - the queue will do crazy things if this
+// rule is broken.
+//
+// Options are, as implied, optional. The queue defaults to 64 slots fixed size,
+// and initializes the Val on each slot to nil.
 func NewSingleProducerSingleConsumer(opts Options) (Queue, error) {
 	if opts.Size == 0 {
 		opts.Size = 64
