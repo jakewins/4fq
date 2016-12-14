@@ -29,16 +29,23 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 		slots[i].Set(opts.Allocate())
 	}
 
-	consumed := &sequence{
-		value: -1,
+	waitStrategy := &SleepWaitStrategy{}
+
+	consumed := &singleWriterBarrier{
+		waitStrategy:waitStrategy,
+		barrierSequence: &sequence{
+			value: -1,
+		},
 	}
 
-	sequencer := newSequencer(opts.Size, &SleepWaitStrategy{}, -1, consumed)
+	sequencer := newSequencer(opts.Size, waitStrategy, -1, consumed)
+
+	published := newMultiWriterBarrier(opts.Size, waitStrategy, sequencer.cursor)
 
 	q := &mpscQueue{
 		slots:     slots,
 		sequencer: sequencer,
-		published: sequencer.newMultiWriterBarrier(sequencer.cursor),
+		published: published,
 		consumed:  consumed,
 		mod:       int64(opts.Size) - 1,
 	}
@@ -56,8 +63,8 @@ type mpscQueue struct {
 	// Barrier for published items - consumers wait on this
 	published barrier
 
-	// Highest consumed slot
-	consumed *sequence
+	// Barrier for consumed items - producers wait on this
+	consumed *singleWriterBarrier
 
 	slots []*Slot
 
@@ -78,19 +85,17 @@ func (q *mpscQueue) Publish(slot *Slot) error {
 }
 
 func (q *mpscQueue) Drain(handler func(*Slot)) error {
-	next := q.consumed.value + 1
+	next := q.consumed.barrierSequence.value + 1
 	published := q.published.waitFor(next)
 
 	if published < next {
 		return nil
 	}
 
-	numConsumed := published - next + 1
-
 	for ; next <= published; next++ {
 		handler(q.slots[next&q.mod])
 	}
-	q.consumed.add(numConsumed)
+	q.consumed.publish(published, published)
 	return nil
 }
 
@@ -109,5 +114,5 @@ func (q *mpscQueue) describe(pre string) {
 		fmt.Printf("[%v]", v)
 	}
 	fmt.Println()
-	fmt.Printf("  {%d -> %d}\n", q.sequencer.cursor.value, q.consumed.value)
+	fmt.Printf("  {%d -> %d}\n", q.sequencer.cursor.value, q.consumed.barrierSequence.value)
 }

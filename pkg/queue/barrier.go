@@ -13,8 +13,16 @@ import "sync/atomic"
 // the message "I'm done up to sequence N".
 type barrier interface {
 	publish(lo, hi int64)
+
+	// Try and wait for the given sequence to be available. How long this will wait depends on
+	// the wait strategy used - in any case, the actual sequence reached is returned and may be less
+	// than the requested sequence.
 	waitFor(sequence int64) int64
 }
+
+// Note: If you're familiar with the LMAX design, you'll note that this
+//       differs - the barriers track publishing data on their own, they don't
+//       connect back to the sequencer for that like LMAX did.
 
 type multiWriterBarrier struct {
 	bufferSize   int64
@@ -38,20 +46,17 @@ type multiWriterBarrier struct {
 	indexShift uint
 }
 
-func (s *multiWriterBarrier) publish(lo, hi int64) {
+func (b *multiWriterBarrier) publish(lo, hi int64) {
 	for l := lo; l <= hi; l++ {
-		s.setAvailable(l)
+		b.setAvailable(l)
 	}
-	s.waitStrategy.SignalAllWhenBlocking()
+	b.waitStrategy.SignalAllWhenBlocking()
 }
 
 func (b *multiWriterBarrier) setAvailable(sequence int64) {
 	b.setAvailableBufferValue(b.calculateIndex(sequence), b.calculateAvailabilityFlag(sequence))
 }
 
-// Try and wait for the given sequence to be available. How long this will wait depends on
-// the wait strategy used - in any case, the actual sequence reached is returned and may be less
-// than the requested sequence.
 func (b *multiWriterBarrier) waitFor(sequence int64) int64 {
 	published := b.waitStrategy.WaitFor(sequence, b.dependentSequence)
 
@@ -87,4 +92,37 @@ func (s *multiWriterBarrier) calculateIndex(sequence int64) int {
 
 func (s *multiWriterBarrier) setAvailableBufferValue(index int, flag int32) {
 	atomic.StoreInt32(&s.availableBuffer[index], flag)
+}
+
+func newMultiWriterBarrier(bufferSize int, waitStrategy WaitStrategy, dependentOn *sequence) barrier {
+	b := &multiWriterBarrier{
+		bufferSize:        int64(bufferSize),
+		waitStrategy:      waitStrategy,
+		dependentSequence: dependentOn,
+		availableBuffer:   make([]int32, bufferSize),
+		indexMask:         int64(bufferSize - 1),
+		indexShift:        log2(bufferSize),
+	}
+	for i := int(bufferSize - 1); i != 0; i-- {
+		b.setAvailableBufferValue(i, -1)
+	}
+	b.setAvailableBufferValue(0, -1)
+
+	return b
+}
+
+
+type singleWriterBarrier struct {
+	waitStrategy WaitStrategy
+	barrierSequence *sequence
+}
+
+func (b *singleWriterBarrier) publish(lo, hi int64) {
+	b.barrierSequence.set(hi)
+	b.waitStrategy.SignalAllWhenBlocking()
+}
+
+func (b *singleWriterBarrier) waitFor(sequence int64) int64 {
+	s :=  b.waitStrategy.WaitFor(sequence, b.barrierSequence)
+	return s
 }

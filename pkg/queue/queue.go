@@ -139,10 +139,7 @@ type sequencer struct {
 	// has reached in our supposedly infinite sequence of numbers
 	cursor *sequence
 
-	// This is the other pointer (soon to be multiple, but one for now) in the queue - the sequencer makes sure
-	// it doesn't get further ahead of this than bufferSize, otherwise we'd wrap around the buffer and overwrite
-	// slots before they had been processed.
-	gatingSequence      *sequence
+	finalBarrier      barrier
 	gatingSequenceCache *sequence
 }
 
@@ -156,7 +153,7 @@ func (s *sequencer) next(n int64) int64 {
 		cachedGatingSequence := s.gatingSequenceCache.get()
 
 		if wrapPoint > cachedGatingSequence || cachedGatingSequence > current {
-			gatingSequence := min(s.gatingSequence.get(), current)
+			gatingSequence := min(s.finalBarrier.waitFor(current), current)
 			if wrapPoint > gatingSequence {
 				s.waitStrategy.SignalAllWhenBlocking()
 				time.Sleep(time.Nanosecond)
@@ -169,32 +166,14 @@ func (s *sequencer) next(n int64) int64 {
 	}
 }
 
-func (s *sequencer) newMultiWriterBarrier(dependentOn *sequence) barrier {
-	b := &multiWriterBarrier{
-		bufferSize:        s.bufferSize,
-		waitStrategy:      s.waitStrategy,
-		dependentSequence: dependentOn,
-		availableBuffer:   make([]int32, s.bufferSize),
-		indexMask:         int64(s.bufferSize - 1),
-		indexShift:        log2(s.bufferSize),
-	}
-
-	for i := int(s.bufferSize - 1); i != 0; i-- {
-		b.setAvailableBufferValue(i, -1)
-	}
-	b.setAvailableBufferValue(0, -1)
-
-	return b
-}
-
-func newSequencer(bufferSize int, ws WaitStrategy, initial int64, gatingSequence *sequence) *sequencer {
+func newSequencer(bufferSize int, ws WaitStrategy, initial int64, finalBarrier barrier) *sequencer {
 	s := &sequencer{
 		bufferSize:   int64(bufferSize),
 		waitStrategy: ws,
 		cursor: &sequence{
 			value: initial,
 		},
-		gatingSequence:      gatingSequence,
+		finalBarrier:      finalBarrier,
 		gatingSequenceCache: &sequence{value: -1},
 	}
 
@@ -212,7 +191,7 @@ func min(a, b int64) int64 {
 	return b
 }
 
-func log2(i int64) uint {
+func log2(i int) uint {
 	r := uint(0)
 	for i >>= 1; i != 0; i >>= 1 {
 		r++
