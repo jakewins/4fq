@@ -139,7 +139,7 @@ type sequencer struct {
 	// has reached in our supposedly infinite sequence of numbers
 	cursor *sequence
 
-	finalBarrier      barrier
+	finalBarrier        barrier
 	gatingSequenceCache *sequence
 }
 
@@ -173,7 +173,7 @@ func newSequencer(bufferSize int, ws WaitStrategy, initial int64, finalBarrier b
 		cursor: &sequence{
 			value: initial,
 		},
-		finalBarrier:      finalBarrier,
+		finalBarrier:        finalBarrier,
 		gatingSequenceCache: &sequence{value: -1},
 	}
 

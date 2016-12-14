@@ -111,9 +111,8 @@ func newMultiWriterBarrier(bufferSize int, waitStrategy WaitStrategy, dependentO
 	return b
 }
 
-
 type singleWriterBarrier struct {
-	waitStrategy WaitStrategy
+	waitStrategy    WaitStrategy
 	barrierSequence *sequence
 }
 
@@ -123,6 +122,6 @@ func (b *singleWriterBarrier) publish(lo, hi int64) {
 }
 
 func (b *singleWriterBarrier) waitFor(sequence int64) int64 {
-	s :=  b.waitStrategy.WaitFor(sequence, b.barrierSequence)
+	s := b.waitStrategy.WaitFor(sequence, b.barrierSequence)
 	return s
 }

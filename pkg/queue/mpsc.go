@@ -32,7 +32,7 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 	waitStrategy := &SleepWaitStrategy{}
 
 	consumed := &singleWriterBarrier{
-		waitStrategy:waitStrategy,
+		waitStrategy: waitStrategy,
 		barrierSequence: &sequence{
 			value: -1,
 		},
