@@ -42,11 +42,13 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 	published := newMultiWriterBarrier(opts.Size, waitStrategy, sequencer.cursor)
 
 	q := &singleConsumerQueue{
-		slots:     slots,
-		sequencer: sequencer,
-		published: published,
+		baseQueue: baseQueue{
+			slots:     slots,
+			sequencer: sequencer,
+			published: published,
+			mod:       int64(opts.Size) - 1,
+		},
 		consumed:  consumed,
-		mod:       int64(opts.Size) - 1,
 	}
 
 	return q, nil

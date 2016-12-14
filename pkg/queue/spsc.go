@@ -47,11 +47,13 @@ func NewSingleProducerSingleConsumer(opts Options) (Queue, error) {
 	}
 
 	q := &singleConsumerQueue{
-		slots:     slots,
-		sequencer: sequencer,
-		published: published,
+		baseQueue: baseQueue{
+			slots:     slots,
+			sequencer: sequencer,
+			published: published,
+			mod:       int64(opts.Size) - 1,
+		},
 		consumed:  consumed,
-		mod:       int64(opts.Size) - 1,
 	}
 
 	return q, nil

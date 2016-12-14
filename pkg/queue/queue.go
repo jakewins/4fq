@@ -180,35 +180,39 @@ func newSequencer(bufferSize int, ws WaitStrategy, initial int64, finalBarrier b
 	return s
 }
 
-// Multi-producer single-consumer allocation-free ring buffer
-type singleConsumerQueue struct {
-
-	// Core source of coordination, points to the highest sequence reached and can create barriers to
-	// safely track how far a sequence has published
+// Allocation-free ring buffer
+type baseQueue struct {
+	// Core source of coordination, points to the highest sequence reached and
+	// ensures producers don't overrun consumers (and thus overwriting unread values)
 	sequencer *sequencer
 
 	// Barrier for published items - consumers wait on this
 	published barrier
 
-	// Barrier for consumed items - producers wait on this
-	consumed *singleWriterBarrier
-
+	// This is the ring buffer
 	slots []*Slot
 
 	// For quick remainder calculation, this is len(slots) - 1
 	mod int64
 }
 
-func (q *singleConsumerQueue) NextFree() (*Slot, error) {
+func (q *baseQueue) NextFree() (*Slot, error) {
 	acquired := q.sequencer.next(1)
 	slot := q.slots[acquired&q.mod]
 	slot.s = acquired
 	return slot, nil
 }
 
-func (q *singleConsumerQueue) Publish(slot *Slot) error {
+func (q *baseQueue) Publish(slot *Slot) error {
 	q.published.publish(slot.s, slot.s)
 	return nil
+}
+
+type singleConsumerQueue struct {
+	baseQueue
+
+	// Barrier for consumed items - producers wait on this
+	consumed *singleWriterBarrier
 }
 
 func (q *singleConsumerQueue) Drain(handler func(*Slot)) error {
