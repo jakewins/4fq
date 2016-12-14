@@ -77,10 +77,6 @@ func (q *mpscQueue) Publish(slot *Slot) error {
 	return nil
 }
 
-func (q *mpscQueue) Push(producer func(slot *Slot)) {
-
-}
-
 func (q *mpscQueue) Drain(handler func(*Slot)) error {
 	next := q.consumed.value + 1
 	published := q.published.waitFor(next)
