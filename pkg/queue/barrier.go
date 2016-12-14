@@ -16,13 +16,11 @@ type barrier interface {
 	waitFor(sequence int64) int64
 }
 
-
 type multiWriterBarrier struct {
 	bufferSize   int64
 	waitStrategy WaitStrategy
 
 	dependentSequence *sequence
-
 
 	// Tracks published slots. This could be implemented with a simple counter;
 	// however, when we have multiple producers, they would need to block and wait on one

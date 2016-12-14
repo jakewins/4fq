@@ -171,12 +171,12 @@ func (s *sequencer) next(n int64) int64 {
 
 func (s *sequencer) newMultiWriterBarrier(dependentOn *sequence) barrier {
 	b := &multiWriterBarrier{
-		bufferSize: s.bufferSize,
-		waitStrategy: s.waitStrategy,
-		dependentSequence:   dependentOn,
-		availableBuffer:     make([]int32, s.bufferSize),
-		indexMask:           int64(s.bufferSize - 1),
-		indexShift:          log2(s.bufferSize),
+		bufferSize:        s.bufferSize,
+		waitStrategy:      s.waitStrategy,
+		dependentSequence: dependentOn,
+		availableBuffer:   make([]int32, s.bufferSize),
+		indexMask:         int64(s.bufferSize - 1),
+		indexShift:        log2(s.bufferSize),
 	}
 
 	for i := int(s.bufferSize - 1); i != 0; i-- {
