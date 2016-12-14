@@ -4,14 +4,7 @@ import (
 	"fmt"
 )
 
-// Create a new queue that safely handles multiple producers publishing items,
-// and one consumer receiving them. Note that the onus is on you to ensure there
-// is just one consumer - the queue will do crazy things if multiple consumers
-// run concurrently.
-//
-// Options are, as implied, optional. The queue defaults to 64 slots fixed size,
-// and initializes the Val on each slot to nil.
-func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
+func NewSingleProducerSingleConsumer(opts Options) (Queue, error) {
 	if opts.Size == 0 {
 		opts.Size = 64
 	}
@@ -39,7 +32,12 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 
 	sequencer := newSequencer(opts.Size, waitStrategy, -1, consumed)
 
-	published := newMultiWriterBarrier(opts.Size, waitStrategy, sequencer.cursor)
+	published := &singleWriterBarrier{
+		waitStrategy: waitStrategy,
+		barrierSequence: &sequence{
+			value: -1,
+		},
+	}
 
 	q := &singleConsumerQueue{
 		slots:     slots,
