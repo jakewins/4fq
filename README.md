@@ -32,13 +32,13 @@ This was built for a specific use case - multiple go routines producing messages
 are then processed in batch by a single go routine. That use case has a chan-based and
 a queue-based benchmark you can find [here](pkg/queue/mpsc_test.go#L86).
 
-For those benchmarks, latency is:
+For those benchmarks, latency tested on a `Intel(R) Core(TM) i7-6600U CPU @ 2.60GHz` was:
 
     Channels:
     95 ns/op
     
     4FQ:
-    137 ns/op
+    80 ns/op
 
 Obviously this is a meaningless number. Your use case is likely different, it's a micro benchmark 
 of a component that is usually not a bottleneck in the first place, and to my knowledge the go 
