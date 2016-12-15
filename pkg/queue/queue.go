@@ -153,7 +153,7 @@ func (s *sequencer) next(n int64) int64 {
 		cachedGatingSequence := s.gatingSequenceCache.get()
 
 		if wrapPoint > cachedGatingSequence || cachedGatingSequence > current {
-			gatingSequence := min(s.finalBarrier.waitFor(current), current)
+			gatingSequence := min(s.finalBarrier.waitFor(wrapPoint), current)
 			if wrapPoint > gatingSequence {
 				s.waitStrategy.SignalAllWhenBlocking()
 				time.Sleep(time.Nanosecond)
@@ -234,9 +234,6 @@ func (q *singleConsumerQueue) Drain(handler func(*Slot)) error {
 type multiConsumerQueue struct {
 	baseQueue
 
-	// Used to coordinate between consumers on who handles what sequence items
-	consumerAcquired *sequence
-
 	// Barrier for consumed items - producers wait on this
 	consumed *multiWriterBarrier
 }
@@ -245,7 +242,7 @@ func (q *multiConsumerQueue) Drain(handler func(*Slot)) error {
 	// This loop to handle us racing with other consumers - keep trying
 	// until we get a range via the CAS further down
 	for {
-		next := q.consumerAcquired.get() + 1
+		next := q.consumed.dependentSequence.get() + 1
 		published := q.published.waitFor(next)
 
 		if published < next {
@@ -254,13 +251,13 @@ func (q *multiConsumerQueue) Drain(handler func(*Slot)) error {
 
 		// Got a candidate for what to handle, coordinate
 		// with other consumers to check if we can take it on
-		if (q.consumerAcquired.compareAndSet(next, published)) {
+		if (q.consumed.dependentSequence.compareAndSet(next - 1, published)) {
+			start := next
 			// We claimed the range, drain it.
-
 			for ; next <= published; next++ {
 				handler(q.slots[next & q.mod])
 			}
-			q.consumed.publish(published, published)
+			q.consumed.publish(start, published)
 			return nil
 		}
 	}

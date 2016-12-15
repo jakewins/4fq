@@ -1,6 +1,8 @@
 package queue
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+)
 
 // See the sequencer doc for context.
 //
@@ -94,7 +96,7 @@ func (s *multiWriterBarrier) setAvailableBufferValue(index int, flag int32) {
 	atomic.StoreInt32(&s.availableBuffer[index], flag)
 }
 
-func newMultiWriterBarrier(bufferSize int, waitStrategy WaitStrategy, dependentOn *sequence) barrier {
+func newMultiWriterBarrier(bufferSize int, waitStrategy WaitStrategy, dependentOn *sequence) *multiWriterBarrier {
 	b := &multiWriterBarrier{
 		bufferSize:        int64(bufferSize),
 		waitStrategy:      waitStrategy,
