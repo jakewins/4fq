@@ -14,12 +14,12 @@ func TestSPSCBasic(t *testing.T) {
 	q, _ := queue.NewSingleProducerSingleConsumer(queue.Options{})
 
 	slot, _ := q.NextFree()
-	slot.Set(1337)
+	slot.Val = 1337
 	q.Publish(slot)
 
 	var published []int
 	q.Drain(func(slot *queue.Slot) {
-		published = append(published, slot.Get().(int))
+		published = append(published, slot.Val.(int))
 	})
 	if len(published) != 1 {
 		t.Errorf("Expected 1 published item, found %d", len(published))
@@ -40,10 +40,10 @@ func TestSPSCBufferWrapAround(t *testing.T) {
 		go func(pid int) {
 			for i := 0; i < length; i++ {
 				slot, _ := q.NextFree()
-				slot.Set(&testItem{
+				slot.Val = &testItem{
 					producer: pid,
 					val:      i,
-				})
+				}
 				q.Publish(slot)
 			}
 		}(1)
@@ -52,7 +52,7 @@ func TestSPSCBufferWrapAround(t *testing.T) {
 		var receivedCount int
 		for receivedCount < length {
 			q.Drain(func(slot *queue.Slot) {
-				item := slot.Get().(*testItem)
+				item := slot.Val.(*testItem)
 				received = append(received, item.val)
 				receivedCount += 1
 			})
@@ -84,7 +84,7 @@ func BenchmarkSpscQueue(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		slot, _ := q.NextFree()
-		slot.Set(i)
+		slot.Val = i
 		q.Publish(slot)
 		i += 1
 	}

@@ -22,7 +22,7 @@ func ExampleMultiProducerMultiConsumer() {
 	// Put something on the queue
 	// 1: Get a queue slot to stick our value in
 	slot, err := q.NextFree()
-	slot.Set("Hello, world!")
+	slot.Val = "Hello, world!"
 
 	// 2: Publish the slot
 	q.Publish(slot)
@@ -30,7 +30,7 @@ func ExampleMultiProducerMultiConsumer() {
 	// Read from the queue
 	// Drain reads in bulk, blocking until at least one message is available,
 	q.Drain(func(slot *queue.Slot) {
-		fmt.Printf("Received: %s\n", slot.Get())
+		fmt.Printf("Received: %s\n", slot.Val)
 	})
 
 	// Output:
@@ -49,7 +49,7 @@ func ExampleMultiProducerSingleConsumer() {
 	// Put something on the queue
 	// 1: Get a queue slot to stick our value in
 	slot, err := q.NextFree()
-	slot.Set("Hello, world!")
+	slot.Val = "Hello, world!"
 
 	// 2: Publish the slot
 	q.Publish(slot)
@@ -57,7 +57,7 @@ func ExampleMultiProducerSingleConsumer() {
 	// Read from the queue
 	// Drain reads in bulk, blocking until at least one message is available,
 	q.Drain(func(slot *queue.Slot) {
-		fmt.Printf("Received: %s\n", slot.Get())
+		fmt.Printf("Received: %s\n", slot.Val)
 	})
 
 	// Output:
@@ -81,7 +81,7 @@ func ExampleSingleProducerSingleConsumer() {
 	// Put something on the queue
 	// 1: Get a queue slot to stick our value in
 	slot, err := q.NextFree()
-	slot.Set("Hello, world!")
+	slot.Val = "Hello, world!"
 
 	// 2: Publish the slot
 	q.Publish(slot)
@@ -89,7 +89,7 @@ func ExampleSingleProducerSingleConsumer() {
 	// Read from the queue
 	// Drain reads in bulk, blocking until at least one message is available,
 	q.Drain(func(slot *queue.Slot) {
-		fmt.Printf("Received: %s\n", slot.Get())
+		fmt.Printf("Received: %s\n", slot.Val)
 	})
 
 	// Output:

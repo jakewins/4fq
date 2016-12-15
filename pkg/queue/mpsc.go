@@ -25,7 +25,7 @@ func NewMultiProducerSingleConsumer(opts Options) (Queue, error) {
 	slots := make([]*Slot, opts.Size)
 	for i := range slots {
 		slots[i] = &Slot{}
-		slots[i].Set(opts.Allocate())
+		slots[i].Val = opts.Allocate()
 	}
 
 	waitStrategy := &SleepWaitStrategy{}
