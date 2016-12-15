@@ -5,6 +5,39 @@ import (
 	"github.com/jakewins/4fq/pkg/queue"
 )
 
+// This variant is safe for multiple producers and multiple consumers,
+// making it the most general of the four queues - if you're unsure which
+// one to use, this is the safe choice.
+// To be safe for multiple producers and consumers, this version of the
+// queue has to take some extra precautions. If you know for a fact that
+// there will be, for instance, just one consumer or just one producer,
+// you may consider looking at one of the specialized options.
+func ExampleMultiProducerMultiConsumer() {
+	q, err := queue.NewSingleProducerSingleConsumer(queue.Options{})
+	if err != nil {
+		// May happen if options are invalid, for instance
+		panic(err)
+	}
+
+	// Put something on the queue
+	// 1: Get a queue slot to stick our value in
+	slot, err := q.NextFree()
+	slot.Set("Hello, world!")
+
+	// 2: Publish the slot
+	q.Publish(slot)
+
+	// Read from the queue
+	// Drain reads in bulk, blocking until at least one message is available,
+	q.Drain(func(slot *queue.Slot) {
+		fmt.Printf("Received: %s\n", slot.Get())
+	})
+
+	// Output:
+	// Received: Hello, world!
+}
+
+
 func ExampleMultiProducerSingleConsumer() {
 	// Create an MPSC Queue
 	q, err := queue.NewMultiProducerSingleConsumer(queue.Options{})

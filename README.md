@@ -1,10 +1,10 @@
 # 4FQ (Four Fast Queues)
 
-An ambitious name for a project with just two queues in it!
+An ambitious name for a project with just three queues in it!
 
-This repository contains a fast Multi-Producer/Single-Consumer and a fast Single-Producer/Single-Consumer
-message queue for Go.
-As the name implies, the intention is to add the two missing variants (SPMC, MPMC).
+This repository contains fast Multi-Producer/Multi-Consumer, Multi-Producer/Single-Consumer 
+and Single-Producer/Single-Consumer message queues for Go.
+As the name implies, the intention is to add the missing variant (SPMC).
 
 For some use cases, the approach these queues take to goroutine coordination can substantially improve your systems performance.
 Specifically, you may benefit from using this queue if:
@@ -15,8 +15,9 @@ Specifically, you may benefit from using this queue if:
 
 ## Examples
 
-- [Multi-producer/Single-consumer queue](pkg/queue/example_test.go#L8)
-- [Single-producer/Single-consumer queue](pkg/queue/example_test.go#L37)
+- [Multi-producer/Multi-consumer queue](pkg/queue/example_test.go#L8)
+- [Multi-producer/Single-consumer queue](pkg/queue/example_test.go#L41)
+- [Single-producer/Single-consumer queue](pkg/queue/example_test.go#L67)
 
 ## Key features
 
