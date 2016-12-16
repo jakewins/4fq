@@ -29,8 +29,8 @@ type Queue interface {
 }
 
 type Slot struct {
-	s      int64
-	Val    interface{}
+	s   int64
+	Val interface{}
 }
 
 // How to approach the queue being empty
@@ -221,7 +221,6 @@ func (q *singleConsumerQueue) Drain(handler func(*Slot)) error {
 	return nil
 }
 
-
 type multiConsumerQueue struct {
 	baseQueue
 
@@ -242,11 +241,11 @@ func (q *multiConsumerQueue) Drain(handler func(*Slot)) error {
 
 		// Got a candidate for what to handle, coordinate
 		// with other consumers to check if we can take it on
-		if (q.consumed.dependentSequence.compareAndSet(next - 1, published)) {
+		if q.consumed.dependentSequence.compareAndSet(next-1, published) {
 			start := next
 			// We claimed the range, drain it.
 			for ; next <= published; next++ {
-				handler(q.slots[next & q.mod])
+				handler(q.slots[next&q.mod])
 			}
 			q.consumed.publish(start, published)
 			return nil

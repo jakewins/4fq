@@ -53,7 +53,7 @@ func NewSingleProducerSingleConsumer(opts Options) (Queue, error) {
 			published: published,
 			mod:       int64(opts.Size) - 1,
 		},
-		consumed:  consumed,
+		consumed: consumed,
 	}
 
 	return q, nil

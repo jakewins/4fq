@@ -28,7 +28,7 @@ func NewSingleProducerMultiConsumer(opts Options) (Queue, error) {
 
 	waitStrategy := &SleepWaitStrategy{}
 
-	consumed := newMultiWriterBarrier(opts.Size, waitStrategy, &sequence{value:-1})
+	consumed := newMultiWriterBarrier(opts.Size, waitStrategy, &sequence{value: -1})
 
 	sequencer := newSequencer(opts.Size, waitStrategy, -1, consumed)
 
@@ -46,7 +46,7 @@ func NewSingleProducerMultiConsumer(opts Options) (Queue, error) {
 			published: published,
 			mod:       int64(opts.Size) - 1,
 		},
-		consumed:  consumed,
+		consumed: consumed,
 	}
 
 	return q, nil

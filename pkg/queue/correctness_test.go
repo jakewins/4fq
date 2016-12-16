@@ -1,10 +1,10 @@
 package queue_test
 
 import (
-	"sync/atomic"
-	"time"
 	"github.com/jakewins/4fq/pkg/queue"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // A scenario that we want to test
@@ -28,10 +28,10 @@ type testItem struct {
 }
 
 var cases = []testScenario{
-	{ "MPMC WrapAround", queue.NewMultiProducerMultiConsumer, queue.Options{ Size: 8 }, 2, 2, 36 },
-	{ "MPSC WrapAround", queue.NewMultiProducerSingleConsumer, queue.Options{ Size: 8 }, 2, 1, 36 },
-	{ "SPMC WrapAround", queue.NewSingleProducerMultiConsumer, queue.Options{ Size: 8 }, 1, 2, 36 },
-	{ "SPSC WrapAround", queue.NewSingleProducerSingleConsumer, queue.Options{ Size: 8 }, 1, 1, 36 },
+	{"MPMC WrapAround", queue.NewMultiProducerMultiConsumer, queue.Options{Size: 8}, 2, 2, 36},
+	{"MPSC WrapAround", queue.NewMultiProducerSingleConsumer, queue.Options{Size: 8}, 2, 1, 36},
+	{"SPMC WrapAround", queue.NewSingleProducerMultiConsumer, queue.Options{Size: 8}, 1, 2, 36},
+	{"SPSC WrapAround", queue.NewSingleProducerSingleConsumer, queue.Options{Size: 8}, 1, 1, 36},
 }
 
 // Verifies each scenario above by transferring messages that contain
@@ -75,7 +75,7 @@ func TestCorrectness(t *testing.T) {
 			}
 
 			// Wait until we've seen all messages
-			for atomic.LoadInt64(&totalReceived) < int64(scenario.numProducers * scenario.messagesPerProducer) {
+			for atomic.LoadInt64(&totalReceived) < int64(scenario.numProducers*scenario.messagesPerProducer) {
 				time.Sleep(time.Microsecond)
 			}
 
