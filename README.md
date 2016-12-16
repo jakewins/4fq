@@ -24,8 +24,7 @@ Specifically, you may benefit from using this queue if:
 ## Key features
 
 - Batch reading, "wait until there's at least one message, then give me all immediately available messages"
-- Allows sharing a pre-allocated set of records between subscribers and producers,
-  meaning allocation-free message passing
+- Share a pre-allocated set of structs between subscribers and producers for allocation-free processing
 - As fast as or faster than channels
 
 ## Performance
