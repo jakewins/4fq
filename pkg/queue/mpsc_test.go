@@ -2,10 +2,6 @@ package queue_test
 
 import (
 	"github.com/jakewins/4fq/pkg/queue"
-	"log"
-	"net/http"
-	_ "net/http"
-	_ "net/http/pprof"
 	"sync/atomic"
 	"testing"
 )
@@ -23,56 +19,6 @@ func TestMPSCBasic(t *testing.T) {
 	})
 	if len(published) != 1 {
 		t.Errorf("Expected 1 published item, found %d", len(published))
-	}
-}
-
-type testItem struct {
-	producer int
-	val      int
-}
-
-func TestMPSCBufferWrapAround(t *testing.T) {
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
-
-	producerCount := 4
-	length := 360
-	for a := 0; a < 100; a++ {
-		q, _ := queue.NewMultiProducerSingleConsumer(queue.Options{
-			Size: 8,
-		})
-
-		for producerId := 0; producerId < producerCount; producerId++ {
-			go func(pid int) {
-				for i := 0; i < length; i++ {
-					slot, _ := q.NextFree()
-					slot.Val = &testItem{
-						producer: pid,
-						val:      i,
-					}
-					q.Publish(slot)
-				}
-			}(producerId)
-		}
-
-		var received = make([][]int, producerCount)
-		var receivedCount int
-		for receivedCount < length*producerCount {
-			q.Drain(func(slot *queue.Slot) {
-				item := slot.Val.(*testItem)
-				received[item.producer] = append(received[item.producer], item.val)
-				receivedCount += 1
-			})
-		}
-
-		for _, messages := range received {
-			for i, v := range messages {
-				if v != i {
-					t.Errorf("Expected incremental sequence of messages, but message %d is %d", i, v)
-				}
-			}
-		}
 	}
 }
 

@@ -22,8 +22,16 @@ type testScenario struct {
 	messagesPerProducer int
 }
 
+type testItem struct {
+	producer int
+	val      int
+}
+
 var cases = []testScenario{
+	{ "MPMC WrapAround", queue.NewMultiProducerMultiConsumer, queue.Options{ Size: 8 }, 2, 2, 36 },
+	{ "MPSC WrapAround", queue.NewMultiProducerSingleConsumer, queue.Options{ Size: 8 }, 2, 1, 36 },
 	{ "SPMC WrapAround", queue.NewSingleProducerMultiConsumer, queue.Options{ Size: 8 }, 1, 2, 36 },
+	{ "SPSC WrapAround", queue.NewSingleProducerSingleConsumer, queue.Options{ Size: 8 }, 1, 1, 36 },
 }
 
 // Verifies each scenario above by transferring messages that contain
@@ -37,8 +45,8 @@ func TestCorrectness(t *testing.T) {
 			q, _ := scenario.newQueue(scenario.options)
 
 			for producerId := 0; producerId < scenario.numProducers; producerId++ {
-				go func(pid int) {
-					for i := 0; i < scenario.messagesPerProducer; i++ {
+				go func(pid, mumMessages int) {
+					for i := 0; i < mumMessages; i++ {
 						slot, _ := q.NextFree()
 						slot.Val = &testItem{
 							producer: pid,
@@ -46,7 +54,7 @@ func TestCorrectness(t *testing.T) {
 						}
 						q.Publish(slot)
 					}
-				}(producerId)
+				}(producerId, scenario.messagesPerProducer)
 			}
 
 			totalReceived := int64(0)
